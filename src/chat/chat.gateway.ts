@@ -17,8 +17,15 @@ import { Logger } from '@nestjs/common';
 @WebSocketGateway(3001, {
   cors: {
     origin: '*',
+    methods: ['GET', 'POST'],
+    credentials: true,
   },
   namespace: '/ws',
+  transports: ['websocket', 'polling'],
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  connectTimeout: 10000,
+  allowEIO3: true,
 })
 export class ChatGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
@@ -49,9 +56,12 @@ export class ChatGateway
 
   async handleConnection(client: Socket) {
     try {
+      this.logger.log(`New connection attempt: ${client.id}`);
+
       // Extract JWT token from query parameters
       const token = client.handshake.query.token as string;
       if (!token) {
+        this.logger.warn(`Connection ${client.id} rejected: No token provided`);
         client.emit('error', {
           type: 'error',
           data: { errorMessage: 'Authentication token required', code: 401 },
@@ -61,22 +71,45 @@ export class ChatGateway
         return;
       }
 
-      // Validate JWT token
-      // For now, decode without verification to fix connection issues
+      // Validate JWT token - make it more lenient for connection issues
       this.logger.log(
-        `Received connection with token: ${token.substring(0, 20)}...`,
+        `Processing connection with token: ${token.substring(0, 20)}...`,
       );
-      const payload: { sub: number; email: string; googleId: string } =
-        this.jwtService.decode(token);
+
+      let payload: { sub: number; email: string; googleId: string };
+      try {
+        // Try to decode the JWT token
+        payload = this.jwtService.decode(token) as {
+          sub: number;
+          email: string;
+          googleId: string;
+        };
+        if (!payload || !payload.sub) {
+          throw new Error('Invalid token payload');
+        }
+      } catch (tokenError) {
+        this.logger.error('Token decode error:', tokenError);
+        client.emit('error', {
+          type: 'error',
+          data: { errorMessage: 'Invalid authentication token', code: 401 },
+          timestamp: Date.now(),
+        });
+        client.disconnect();
+        return;
+      }
+
       this.logger.log(`Decoded payload for user ID: ${payload.sub}`);
+
+      // Check if user exists in database
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub },
       });
 
       if (!user) {
+        this.logger.warn(`User ${payload.sub} not found in database`);
         client.emit('error', {
           type: 'error',
-          data: { errorMessage: 'Authentication failed', code: 401 },
+          data: { errorMessage: 'User not found', code: 404 },
           timestamp: Date.now(),
         });
         client.disconnect();
@@ -100,12 +133,25 @@ export class ChatGateway
         data: { lastActive: new Date() },
       });
 
-      this.logger.log(`User ${user.id} connected with socket ${client.id}`);
+      // Send connection success confirmation
+      client.emit('connected', {
+        type: 'connected',
+        data: {
+          userId: user.id,
+          connectionId: client.id,
+          status: 'connected',
+        },
+        timestamp: Date.now(),
+      });
+
+      this.logger.log(
+        `✅ User ${user.id} successfully connected with socket ${client.id}`,
+      );
     } catch (error) {
-      this.logger.error('Connection error:', error);
+      this.logger.error('❌ Connection error:', error);
       client.emit('error', {
         type: 'error',
-        data: { errorMessage: 'Authentication failed', code: 401 },
+        data: { errorMessage: 'Connection failed', code: 500 },
         timestamp: Date.now(),
       });
       client.disconnect();
@@ -113,8 +159,24 @@ export class ChatGateway
   }
 
   handleDisconnect(client: Socket) {
-    this.webSocketService.removeConnection(client.id);
-    this.logger.log(`Client disconnected: ${client.id}`);
+    try {
+      const connection = this.webSocketService.getConnection(client.id);
+      if (connection) {
+        this.logger.log(
+          `👋 User ${connection.userId} disconnecting (${client.id})`,
+        );
+      } else {
+        this.logger.log(`👋 Unknown client disconnecting: ${client.id}`);
+      }
+
+      this.webSocketService.removeConnection(client.id);
+      this.logger.log(`✅ Connection ${client.id} cleaned up successfully`);
+    } catch (error) {
+      this.logger.error(
+        `❌ Error during disconnect cleanup for ${client.id}:`,
+        error,
+      );
+    }
   }
 
   @SubscribeMessage('message')

@@ -23,6 +23,10 @@ export class WebSocketService {
     );
   }
 
+  getConnection(connectionId: string): ConnectionInfo | undefined {
+    return this.connections.get(connectionId);
+  }
+
   removeConnection(connectionId: string) {
     const connection = this.connections.get(connectionId);
     if (!connection) return;
@@ -83,7 +87,29 @@ export class WebSocketService {
       console.log(`User message content: ${content}`);
       console.log(`User ID: ${connection.userId}`);
 
-      // Show typing indicator for AI immediately
+      // First, send immediate confirmation that the user message was received
+      client.emit('message', {
+        type: 'message',
+        data: {
+          chatId,
+          message: {
+            id: `temp_${Date.now()}`, // Temporary ID for immediate feedback
+            chatId,
+            userId: connection.userId.toString(),
+            agentId,
+            content,
+            role: 'user',
+            timestamp: new Date().toISOString(),
+            metadata: { confirmed: false },
+          },
+          messageId,
+          confirmed: false,
+        },
+        timestamp: Date.now(),
+        messageId,
+      });
+
+      // Show typing indicator for AI
       client.emit('typing', {
         type: 'typing',
         data: {
@@ -105,7 +131,7 @@ export class WebSocketService {
         `AI Response received: ${aiResponse.content.substring(0, 100)}...`,
       );
 
-      // Get the user message that was just saved
+      // Get the user message that was just saved by the sendMessage method
       const userMessage = await this.prisma.message.findFirst({
         where: {
           chatId,
@@ -116,9 +142,9 @@ export class WebSocketService {
         orderBy: { timestamp: 'desc' },
       });
 
-      // Send user message (confirmed version)
+      // Send confirmed user message
       if (userMessage) {
-        console.log(`Sending user message: ${userMessage.content}`);
+        console.log(`Sending confirmed user message: ${userMessage.content}`);
         client.emit('message', {
           type: 'message',
           data: {
@@ -131,10 +157,7 @@ export class WebSocketService {
               content: userMessage.content,
               role: userMessage.role,
               timestamp: userMessage.timestamp.toISOString(),
-              metadata: {
-                ...(userMessage.metadata as object),
-                confirmed: true,
-              },
+              metadata: userMessage.metadata,
             },
             messageId,
             confirmed: true,
@@ -179,7 +202,7 @@ export class WebSocketService {
           timestamp: Date.now(),
           messageId: `${messageId}_ai`,
         });
-      }, 800); // Slightly longer delay for better UX
+      }, 500); // 500ms delay for more natural feel
 
       return true;
     } catch (error) {
