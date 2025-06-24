@@ -335,112 +335,125 @@ export class ChatService {
     agentId: string,
     userMessage: string,
   ) {
-    console.log(`=== AI RESPONSE GENERATION DEBUG ===`);
-    console.log(`AgentId: ${agentId}`);
-    console.log(`User message: ${userMessage}`);
+    try {
+      console.log(`=== AI RESPONSE GENERATION DEBUG ===`);
+      console.log(`AgentId: ${agentId}`);
+      console.log(`User message: ${userMessage}`);
 
-    // Map agentId to persona type
-    const agentToPersonaMap: Record<string, PersonaType> = {
-      therapist: 'THERAPIST',
-      dietician: 'DIETICIAN',
-      career: 'CAREER',
-      priya: 'PRIYA',
-    };
+      // Map agentId to persona type
+      const agentToPersonaMap: Record<string, PersonaType> = {
+        therapist: 'THERAPIST',
+        dietician: 'DIETICIAN',
+        career: 'CAREER',
+        priya: 'PRIYA',
+      };
 
-    const personaType = agentToPersonaMap[agentId];
-    console.log(`Mapped persona type: ${personaType}`);
+      const personaType = agentToPersonaMap[agentId];
+      console.log(`Mapped persona type: ${personaType}`);
 
-    if (!personaType) {
-      console.log(`Invalid agent ID: ${agentId}`);
-      throw new BadRequestException('Invalid agent ID');
-    }
+      if (!personaType) {
+        console.log(`Invalid agent ID: ${agentId}`);
+        throw new BadRequestException('Invalid agent ID');
+      }
 
-    // Get conversation history for context
-    const conversationHistory = await this.prisma.message.findMany({
-      where: { chatId },
-      orderBy: { timestamp: 'asc' },
-      take: 20, // Increased from 10 to 20 for better context
-    });
-
-    console.log(
-      `Found ${conversationHistory.length} messages in conversation history`,
-    );
-
-    // Log recent conversation for debugging
-    if (conversationHistory.length > 0) {
-      console.log('Recent conversation:');
-      conversationHistory.slice(-5).forEach((msg, idx) => {
-        console.log(
-          `  ${idx + 1}. [${msg.role}]: ${msg.content.substring(0, 100)}...`,
-        );
+      // Get conversation history for context
+      const conversationHistory = await this.prisma.message.findMany({
+        where: { chatId },
+        orderBy: { timestamp: 'asc' },
+        take: 20, // Increased from 10 to 20 for better context
       });
-    }
 
-    // Build conversation context - only include relevant messages
-    const messages = conversationHistory
-      .filter((msg) => msg.content && msg.content.trim().length > 0) // Filter out empty messages
-      .map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      }));
+      console.log(
+        `Found ${conversationHistory.length} messages in conversation history`,
+      );
 
-    // Add current user message
-    messages.push({ role: 'user', content: userMessage });
+      // Log recent conversation for debugging
+      if (conversationHistory.length > 0) {
+        console.log('Recent conversation:');
+        conversationHistory.slice(-5).forEach((msg, idx) => {
+          console.log(
+            `  ${idx + 1}. [${msg.role}]: ${msg.content.substring(0, 100)}...`,
+          );
+        });
+      }
 
-    // Get system prompt for the persona
-    const systemPromptForPersona =
-      this.aiPersonasService.getSystemPrompt(personaType);
+      // Build conversation context - only include relevant messages
+      const messages = conversationHistory
+        .filter((msg) => msg.content && msg.content.trim().length > 0) // Filter out empty messages
+        .map((msg) => ({
+          role: msg.role,
+          content: msg.content,
+        }));
 
-    console.log(
-      `Retrieved system prompt for ${personaType}: ${systemPromptForPersona.substring(0, 100)}...`,
-    );
+      // Add current user message
+      messages.push({ role: 'user', content: userMessage });
 
-    // TODO: Integrate with actual AI service (OpenAI, etc.)
-    // For now, return a mock response
-    const aiResponse = await this.generateMockAIResponse(
-      systemPromptForPersona,
-      messages,
-    );
+      // Get system prompt for the persona
+      const systemPromptForPersona =
+        this.aiPersonasService.getSystemPrompt(personaType);
 
-    console.log(`Generated AI response: ${aiResponse.substring(0, 100)}...`);
+      console.log(
+        `Retrieved system prompt for ${personaType}: ${systemPromptForPersona.substring(0, 100)}...`,
+      );
 
-    // Save AI response
-    const savedResponse = await this.prisma.message.create({
-      data: {
-        chatId,
-        userId, // Using same userId for AI responses
-        agentId,
-        content: aiResponse,
-        role: 'assistant',
-        metadata: {
-          confidence: 0.9,
-          messageIndex: conversationHistory.length + 2,
-          totalMessages: conversationHistory.length + 2,
-          read: false,
+      // TODO: Integrate with actual AI service (OpenAI, etc.)
+      // For now, return a mock response
+      const aiResponse = await this.generateMockAIResponse(
+        systemPromptForPersona,
+        messages,
+      );
+
+      console.log(`Generated AI response: ${aiResponse.substring(0, 100)}...`);
+
+      // Save AI response
+      const savedResponse = await this.prisma.message.create({
+        data: {
+          chatId,
+          userId, // Using same userId for AI responses
+          agentId,
+          content: aiResponse,
+          role: 'assistant',
+          metadata: {
+            confidence: 0.9,
+            messageIndex: conversationHistory.length + 2,
+            totalMessages: conversationHistory.length + 2,
+            read: false,
+          },
         },
-      },
-    });
+      });
 
-    // Update chat
-    await this.prisma.chat.update({
-      where: { id: chatId },
-      data: {
-        messageCount: { increment: 1 },
-        lastMessage: aiResponse,
-        updatedAt: new Date(),
-      },
-    });
+      // Update chat
+      await this.prisma.chat.update({
+        where: { id: chatId },
+        data: {
+          messageCount: { increment: 1 },
+          lastMessage: aiResponse,
+          updatedAt: new Date(),
+        },
+      });
 
-    return {
-      id: savedResponse.id,
-      chatId: savedResponse.chatId,
-      userId: savedResponse.userId,
-      agentId: savedResponse.agentId,
-      content: savedResponse.content,
-      role: savedResponse.role,
-      timestamp: savedResponse.timestamp,
-      metadata: savedResponse.metadata,
-    };
+      console.log(
+        `✅ AI response saved successfully with ID: ${savedResponse.id}`,
+      );
+
+      return {
+        id: savedResponse.id,
+        chatId: savedResponse.chatId,
+        userId: savedResponse.userId,
+        agentId: savedResponse.agentId,
+        content: savedResponse.content,
+        role: savedResponse.role,
+        timestamp: savedResponse.timestamp,
+        metadata: savedResponse.metadata,
+      };
+    } catch (error) {
+      console.error('❌ Error in generateAIResponse:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
+        console.error('Error stack:', error.stack);
+      }
+      throw error; // Re-throw to let the calling function handle it
+    }
   }
 
   private async generateMockAIResponse(

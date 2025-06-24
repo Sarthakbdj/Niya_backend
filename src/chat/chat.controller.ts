@@ -64,16 +64,51 @@ export class ChatController {
     @Body() sendMessageDto: SendMessageDto,
     @Request() req: any,
   ) {
-    const userId = req.user.id;
-    const response = await this.chatService.sendMessage(
-      chatId,
-      userId,
-      sendMessageDto,
-    );
-    return {
-      success: true,
-      data: response,
-    };
+    try {
+      console.log('=== SEND MESSAGE DEBUG ===');
+      console.log('Chat ID:', chatId);
+      console.log('User ID:', req.user?.id);
+      console.log('Message DTO:', sendMessageDto);
+
+      const userId = req.user.id;
+
+      if (!userId) {
+        throw new Error('User ID not found in request');
+      }
+
+      if (!chatId) {
+        throw new Error('Chat ID is required');
+      }
+
+      if (
+        !sendMessageDto ||
+        !sendMessageDto.content ||
+        !sendMessageDto.agentId
+      ) {
+        throw new Error(
+          'Invalid message data: content and agentId are required',
+        );
+      }
+
+      const response = await this.chatService.sendMessage(
+        chatId,
+        userId,
+        sendMessageDto,
+      );
+
+      console.log('Message sent successfully, response:', response.id);
+
+      return {
+        success: true,
+        data: response,
+      };
+    } catch (error) {
+      console.error('❌ Send message error:', error);
+      if (error instanceof Error) {
+        console.error('Error stack:', error.stack);
+      }
+      throw error; // Re-throw to let NestJS handle it properly
+    }
   }
 
   @Get(':chatId/messages')
