@@ -447,39 +447,78 @@ export class ChatService {
     systemPrompt: string,
     messages: { role: string; content: string }[],
   ): Promise<string> {
-    try {
-      const lastMessage = (messages[messages.length - 1] as { content: string })
-        .content;
+    console.log('=== AI SERVICE INTEGRATION ===');
+    console.log('Attempting to generate AI response...');
 
-      // First, try the external AI service
-      const response = await fetch('http://localhost:1511/message', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+    try {
+      // Use OpenAI API directly instead of localhost:1511
+      const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
+      if (!OPENAI_API_KEY) {
+        console.log(
+          'No OpenAI API key found, falling back to persona responses',
+        );
+        throw new Error('OpenAI API key not configured');
+      }
+
+      // Build messages for OpenAI API
+      const openAIMessages = [
+        { role: 'system', content: systemPrompt },
+        ...messages,
+      ];
+
+      console.log('Calling OpenAI API with messages:', openAIMessages.length);
+
+      const response = await fetch(
+        'https://api.openai.com/v1/chat/completions',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: process.env.OPENAI_MODEL || 'gpt-3.5-turbo',
+            messages: openAIMessages,
+            max_tokens: 500,
+            temperature: 0.7,
+            stream: false,
+          }),
+          signal: AbortSignal.timeout(10000), // 10 second timeout
         },
-        body: JSON.stringify({
-          message: lastMessage,
-        }),
-        signal: AbortSignal.timeout(5000), // 5 second timeout
-      });
+      );
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('OpenAI API error:', response.status, errorText);
+        throw new Error(`OpenAI API error: ${response.status}`);
       }
 
-      const data: { success: boolean; response: string; error: string | null } =
-        await response.json();
+      const data = await response.json();
 
-      if (data.success && data.response) {
-        return data.response;
+      if (
+        data.choices &&
+        data.choices[0] &&
+        data.choices[0].message &&
+        data.choices[0].message.content
+      ) {
+        const aiResponse = data.choices[0].message.content.trim();
+        console.log(
+          '✅ OpenAI API response received:',
+          aiResponse.substring(0, 100) + '...',
+        );
+        return aiResponse;
       } else {
-        throw new Error(data.error || 'No response from AI service');
+        console.error('Invalid OpenAI API response format:', data);
+        throw new Error('Invalid response format from OpenAI');
       }
     } catch (error) {
-      console.error('Error calling AI service:', error);
-      console.log('Falling back to persona-based response generation...');
+      console.error('Error calling OpenAI API:', (error as Error).message);
+      console.log(
+        'Falling back to enhanced persona-based response generation...',
+      );
 
-      // Fallback to persona-based response generation
+      // Enhanced fallback with better context awareness
       return this.generatePersonaBasedResponse(systemPrompt, messages);
     }
   }
