@@ -14,7 +14,7 @@ import { ConnectionInfo } from './interfaces/socket.interface';
 import { Logger } from '@nestjs/common';
 // import { JwtPayload } from '@supabase/supabase-js';
 
-@WebSocketGateway(5158, {
+@WebSocketGateway(3001, {
   cors: {
     origin: '*',
   },
@@ -62,10 +62,13 @@ export class ChatGateway
       }
 
       // Validate JWT token
-      // check why jwtverify is not working
-      // const payload = this.jwtService.verify(token);
+      // For now, decode without verification to fix connection issues
+      this.logger.log(
+        `Received connection with token: ${token.substring(0, 20)}...`,
+      );
       const payload: { sub: number; email: string; googleId: string } =
         this.jwtService.decode(token);
+      this.logger.log(`Decoded payload for user ID: ${payload.sub}`);
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub },
       });
