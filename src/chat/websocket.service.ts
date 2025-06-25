@@ -178,11 +178,13 @@ export class WebSocketService {
         timestamp: Date.now(),
       });
 
-      // Send AI response after a brief delay for better UX
-      setTimeout(() => {
+      // Send AI response(s) after a brief delay for better UX
+      setTimeout(async () => {
         console.log(
           `Sending AI response: ${aiResponse.content.substring(0, 50)}...`,
         );
+
+        // Send first message
         client.emit('message', {
           type: 'message',
           data: {
@@ -196,12 +198,81 @@ export class WebSocketService {
               role: aiResponse.role,
               timestamp: aiResponse.timestamp.toISOString(),
               metadata: aiResponse.metadata,
+              isMultiMessage: aiResponse.isMultiMessage,
+              isFirst: true,
             },
             messageId: `${messageId}_ai`,
           },
           timestamp: Date.now(),
           messageId: `${messageId}_ai`,
         });
+
+        // Send additional messages if it's a multi-message response
+        if (aiResponse.isMultiMessage && aiResponse.additionalMessages) {
+          for (let i = 0; i < aiResponse.additionalMessages.length; i++) {
+            // Wait for realistic delay between messages
+            await new Promise((resolve) =>
+              setTimeout(resolve, 1000 + Math.random() * 2000),
+            ); // 1-3 second delay
+
+            // Show typing indicator for next message
+            client.emit('typing', {
+              type: 'typing',
+              data: {
+                chatId,
+                agentId,
+                isTyping: true,
+              },
+              timestamp: Date.now(),
+            });
+
+            // Short typing delay
+            await new Promise((resolve) => setTimeout(resolve, 500));
+
+            // Stop typing indicator
+            client.emit('typing', {
+              type: 'typing',
+              data: {
+                chatId,
+                agentId,
+                isTyping: false,
+              },
+              timestamp: Date.now(),
+            });
+
+            // Send additional message
+            console.log(
+              `Sending additional message ${i + 1}: ${aiResponse.additionalMessages[i].substring(0, 50)}...`,
+            );
+            client.emit('message', {
+              type: 'message',
+              data: {
+                chatId,
+                message: {
+                  id: `${aiResponse.id}_${i + 1}`,
+                  chatId: aiResponse.chatId,
+                  userId: aiResponse.userId.toString(),
+                  agentId: aiResponse.agentId,
+                  content: aiResponse.additionalMessages[i],
+                  role: aiResponse.role,
+                  timestamp: new Date().toISOString(),
+                  metadata: {
+                    ...aiResponse.metadata,
+                    isAdditional: true,
+                    messageIndex: i + 2,
+                  },
+                  isMultiMessage: true,
+                  isAdditional: true,
+                  messageIndex: i + 2,
+                  totalMessages: aiResponse.additionalMessages.length + 1,
+                },
+                messageId: `${messageId}_ai_${i + 1}`,
+              },
+              timestamp: Date.now(),
+              messageId: `${messageId}_ai_${i + 1}`,
+            });
+          }
+        }
       }, 500); // 500ms delay for more natural feel
 
       return true;

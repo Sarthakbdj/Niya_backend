@@ -30,6 +30,33 @@ export interface PaginatedMessagesResponse {
   total: number;
 }
 
+export interface MultiMessageResponse {
+  messages: string[];
+  isMultiMessage: boolean;
+  firstMessage: string;
+  totalMessages: number;
+}
+
+export interface SendMessageResponse {
+  id: string;
+  chatId: string;
+  userId: number;
+  agentId: string;
+  content: string;
+  role: string;
+  timestamp: Date;
+  metadata: any;
+  isMultiMessage?: boolean;
+  additionalMessages?: string[];
+}
+
+export interface BridgeMultiMessageResponse {
+  messages: string[];
+  is_multi_message: boolean;
+  response: string;
+  success: boolean;
+}
+
 @Injectable()
 export class ChatService {
   constructor(
@@ -125,7 +152,7 @@ export class ChatService {
     chatId: string,
     userId: number,
     sendMessageDto: SendMessageDto,
-  ) {
+  ): Promise<SendMessageResponse> {
     const { content, agentId } = sendMessageDto;
 
     // Verify chat exists and belongs to user
@@ -163,7 +190,7 @@ export class ChatService {
       },
     });
 
-    // Generate AI response
+    // Generate AI response (now supports multi-message)
     const aiResponse = await this.generateAIResponse(
       chatId,
       userId,
@@ -334,7 +361,7 @@ export class ChatService {
     userId: number,
     agentId: string,
     userMessage: string,
-  ) {
+  ): Promise<SendMessageResponse> {
     try {
       console.log(`=== AI RESPONSE GENERATION DEBUG ===`);
       console.log(`AgentId: ${agentId}`);
@@ -396,38 +423,76 @@ export class ChatService {
         `Retrieved system prompt for ${personaType}: ${systemPromptForPersona.substring(0, 100)}...`,
       );
 
-      // TODO: Integrate with actual AI service (OpenAI, etc.)
-      // For now, return a mock response
-      const aiResponse = await this.generateMockAIResponse(
+      // Generate AI response (now supports multi-message)
+      const aiResponseData = await this.generateMockAIResponse(
         systemPromptForPersona,
         messages,
       );
 
-      console.log(`Generated AI response: ${aiResponse.substring(0, 100)}...`);
+      // Handle both single and multi-message responses
+      let primaryResponse: string;
+      let additionalMessages: string[] = [];
+      let isMultiMessage = false;
 
-      // Save AI response
+      console.log('🔍 AI RESPONSE DATA DEBUG:');
+      console.log('- Type:', typeof aiResponseData);
+      console.log(
+        '- Has messages property:',
+        typeof aiResponseData === 'object' && 'messages' in aiResponseData,
+      );
+      console.log('- Raw data:', JSON.stringify(aiResponseData, null, 2));
+
+      if (typeof aiResponseData === 'object' && 'messages' in aiResponseData) {
+        // Multi-message response from bridge
+        const bridgeResponse = aiResponseData as BridgeMultiMessageResponse;
+        primaryResponse = bridgeResponse.messages[0] || 'Hello!';
+        additionalMessages = bridgeResponse.messages.slice(1);
+        isMultiMessage = bridgeResponse.messages.length > 1;
+        console.log(`✅ Multi-message response detected:`);
+        console.log(`   - Total messages: ${bridgeResponse.messages.length}`);
+        console.log(`   - Primary: "${primaryResponse.substring(0, 100)}..."`);
+        console.log(`   - Additional: ${additionalMessages.length} messages`);
+        additionalMessages.forEach((msg, index) => {
+          console.log(
+            `   - Additional ${index + 1}: "${msg.substring(0, 100)}..."`,
+          );
+        });
+      } else if (typeof aiResponseData === 'string') {
+        // Single message response
+        primaryResponse = aiResponseData;
+        console.log(
+          `✅ Single message response: ${primaryResponse.substring(0, 100)}...`,
+        );
+      } else {
+        console.error('❌ Invalid AI response format:', aiResponseData);
+        throw new Error('Invalid AI response format');
+      }
+
+      // Save primary AI response
       const savedResponse = await this.prisma.message.create({
         data: {
           chatId,
           userId, // Using same userId for AI responses
           agentId,
-          content: aiResponse,
+          content: primaryResponse,
           role: 'assistant',
           metadata: {
             confidence: 0.9,
             messageIndex: conversationHistory.length + 2,
             totalMessages: conversationHistory.length + 2,
             read: false,
+            isMultiMessage,
+            additionalMessages: isMultiMessage ? additionalMessages : undefined,
           },
         },
       });
 
-      // Update chat
+      // Update chat with primary message
       await this.prisma.chat.update({
         where: { id: chatId },
         data: {
           messageCount: { increment: 1 },
-          lastMessage: aiResponse,
+          lastMessage: primaryResponse,
           updatedAt: new Date(),
         },
       });
@@ -436,7 +501,7 @@ export class ChatService {
         `✅ AI response saved successfully with ID: ${savedResponse.id}`,
       );
 
-      return {
+      const finalResponse = {
         id: savedResponse.id,
         chatId: savedResponse.chatId,
         userId: savedResponse.userId,
@@ -445,7 +510,30 @@ export class ChatService {
         role: savedResponse.role,
         timestamp: savedResponse.timestamp,
         metadata: savedResponse.metadata,
+        isMultiMessage,
+        additionalMessages,
       };
+
+      console.log('🔍 FINAL RESPONSE DEBUG:');
+      console.log(`   - isMultiMessage: ${finalResponse.isMultiMessage}`);
+      console.log(
+        `   - additionalMessages count: ${finalResponse.additionalMessages?.length || 0}`,
+      );
+      console.log(
+        `   - primary content: "${finalResponse.content.substring(0, 100)}..."`,
+      );
+      if (
+        finalResponse.additionalMessages &&
+        finalResponse.additionalMessages.length > 0
+      ) {
+        finalResponse.additionalMessages.forEach((msg, index) => {
+          console.log(
+            `   - additional ${index + 1}: "${msg.substring(0, 100)}..."`,
+          );
+        });
+      }
+
+      return finalResponse;
     } catch (error) {
       console.error('❌ Error in generateAIResponse:', error);
       if (error instanceof Error) {
@@ -459,7 +547,7 @@ export class ChatService {
   private async generateMockAIResponse(
     systemPrompt: string,
     messages: { role: string; content: string }[],
-  ): Promise<string> {
+  ): Promise<string | BridgeMultiMessageResponse> {
     try {
       const lastMessage = (messages[messages.length - 1] as { content: string })
         .content;
@@ -480,25 +568,66 @@ export class ChatService {
       });
 
       if (!response.ok) {
+        console.error(
+          `❌ HTTP error! status: ${response.status}, statusText: ${response.statusText}`,
+        );
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data: { success: boolean; response: string; error: string | null } =
+      console.log(`📥 Received response from Letta, parsing JSON...`);
+      const data:
+        | BridgeMultiMessageResponse
+        | { success: boolean; response: string; error: string | null } =
         await response.json();
+      console.log(`📋 Parsed data:`, JSON.stringify(data, null, 2));
 
-      if (data.success && data.response) {
+      if (data.success) {
         const endTime = Date.now();
         const duration = endTime - startTime;
+
+        // Enhanced debugging for multi-message detection
+        console.log('🔍 MULTI-MESSAGE DEBUG:');
+        console.log('- Has "messages" property:', 'messages' in data);
+        console.log('- Messages array:', (data as any).messages);
+        console.log('- Messages length:', (data as any).messages?.length);
         console.log(
-          `✅ Letta responded in ${duration}ms with: ${data.response.substring(0, 100)}...`,
+          '- Has "is_multi_message":',
+          (data as any).is_multi_message,
         );
-        return data.response;
+        console.log('- Data keys:', Object.keys(data));
+
+        // Check if it's a multi-message response
+        if ('messages' in data && data.messages && data.messages.length > 0) {
+          console.log(
+            `✅ Letta responded in ${duration}ms with ${data.messages.length} messages:`,
+          );
+          data.messages.forEach((msg, index) => {
+            console.log(`   ${index + 1}. "${msg.substring(0, 100)}..."`);
+          });
+          return data as BridgeMultiMessageResponse;
+        } else if ('response' in data && data.response) {
+          console.log(
+            `✅ Letta responded in ${duration}ms with single message: ${data.response.substring(0, 100)}...`,
+          );
+          return data.response;
+        } else {
+          console.error('❌ No valid response found in data:', data);
+          throw new Error('No valid response from AI service');
+        }
       } else {
-        throw new Error(data.error || 'No response from AI service');
+        throw new Error((data as any).error || 'No response from AI service');
       }
     } catch (error) {
-      console.error('Error calling AI service:', error);
-      console.log('Falling back to persona-based response generation...');
+      console.error('❌ Error calling AI service:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        name: error instanceof Error ? error.name : 'Unknown',
+        stack:
+          error instanceof Error
+            ? error.stack?.substring(0, 200)
+            : 'No stack trace',
+      });
+      console.log('🔄 Falling back to persona-based response generation...');
 
       // Fallback to persona-based response generation
       return this.generatePersonaBasedResponse(systemPrompt, messages);
