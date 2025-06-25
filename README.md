@@ -1,240 +1,237 @@
-# 🎓 Gurukul Backend
+# Niya Backend 🤖
 
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+A comprehensive AI-powered backend system for conversational AI assistants with multiple personas including therapist, dietician, career counselor, and companion AI.
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+## 🌟 Features
 
-<p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-<p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-<a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-<a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-<a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
+- **Multi-Persona AI System**: Therapist, Dietician, Career Counselor, and Priya (Companion AI)
+- **Real-time WebSocket Communication**: Instant messaging with typing indicators
+- **RESTful API**: Complete CRUD operations for chats and messages
+- **JWT Authentication**: Secure user authentication with Google OAuth
+- **Database Integration**: PostgreSQL with Prisma ORM
+- **AI Integration**: Supports external AI services (Letta AI) with intelligent fallbacks
+- **Anti-Repetition System**: Prevents repetitive responses for natural conversations
+- **Conversation Context**: Maintains conversation history for contextual responses
 
-## 📖 Description
+## 🛠️ Tech Stack
 
-Gurukul Backend is an intelligent educational platform built with [NestJS](https://github.com/nestjs/nest) that provides AI-powered learning experiences. The platform features:
-
-- 🤖 **AI Personas**: Custom AI personalities including Priya, an intelligent learning assistant
-- 💬 **WhatsApp Integration**: Seamless communication through WhatsApp
-- 📝 **Conversation Summarization**: Smart summarization of learning conversations
-- 🔍 **RAG (Retrieval-Augmented Generation)**: Enhanced AI responses with context retrieval
-- 👤 **User Management**: Complete user authentication and profile management
-- 🧠 **LLM Integration**: Advanced language model capabilities
-
-## 🏗️ Project Structure
-
-```
-src/
-├── ai-personas/          # AI personality configurations
-│   ├── config/           # Persona settings
-│   └── training-data/    # Training examples
-├── whatsapp/             # WhatsApp integration
-├── summarization/        # Conversation summarization
-├── rag/                  # Retrieval-Augmented Generation
-├── llm/                  # Language model services
-├── user/                 # User management
-├── services/             # Shared services
-└── prisma/               # Database schema and migrations
-```
+- **Framework**: NestJS
+- **Database**: PostgreSQL (Supabase)
+- **ORM**: Prisma
+- **Authentication**: JWT + Google OAuth
+- **Real-time**: Socket.IO
+- **AI Integration**: Letta AI + Custom Persona System
+- **Language**: TypeScript
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js (v18 or higher)
-- npm or yarn
+- Node.js (v18+)
 - PostgreSQL database
-- Supabase account (for vector storage)
+- npm/yarn
 
 ### Installation
 
-```bash
-# Clone the repository
-git clone https://github.com/gurukulai/gurukul-v1-backend.git
-cd gurukul-v1-backend
+1. **Clone the repository**
 
-# Install dependencies
+```bash
+git clone https://github.com/yourusername/Niya_Backend.git
+cd Niya_Backend
+```
+
+2. **Install dependencies**
+
+```bash
 npm install
+```
 
-# Set up environment variables
+3. **Environment Setup**
+   Copy `.env.example` to `.env` and fill in your values:
+
+```bash
 cp .env.example .env
-# Edit .env with your configuration
 ```
 
-### Environment Configuration
-
-Create a `.env` file with the following variables:
-
-```env
-# Database
-DATABASE_URL="postgresql://username:password@localhost:5432/gurukul"
-
-# OpenAI
-OPENAI_API_KEY="your-openai-api-key"
-
-# Supabase
-SUPABASE_URL="your-supabase-url"
-SUPABASE_ANON_KEY="your-supabase-anon-key"
-SUPABASE_SERVICE_ROLE_KEY="your-supabase-service-role-key"
-
-# WhatsApp (if using)
-WHATSAPP_API_KEY="your-whatsapp-api-key"
-```
-
-### Database Setup
+4. **Database Setup**
 
 ```bash
-# Generate Prisma client
 npx prisma generate
-
-# Run migrations
-npx prisma migrate dev
-
-# Seed database (if applicable)
-npx prisma db seed
+npx prisma db push
 ```
 
-## 🏃‍♂️ Running the Application
+5. **Start Development Server**
 
 ```bash
-# Development mode
 npm run start:dev
-
-# Production mode
-npm run start:prod
-
-# Debug mode
-npm run start:debug
 ```
 
-The application will be available at `http://localhost:3000`
+The server will start on:
 
-## 🧪 Testing
+- **API Server**: http://localhost:3002
+- **WebSocket Server**: http://localhost:3001
 
-```bash
-# Unit tests
-npm run test
+## 📡 API Endpoints
 
-# E2E tests
-npm run test:e2e
+### Authentication
 
-# Test coverage
-npm run test:cov
+- `POST /auth/google` - Google OAuth authentication
+- `POST /auth/refresh` - Refresh JWT token
 
-# Watch mode
-npm run test:watch
-```
+### Chats
+
+- `GET /chats` - Get all user chats
+- `POST /chats` - Create new chat
+- `GET /chats/:chatId` - Get specific chat
+- `DELETE /chats/:chatId` - Delete chat
+
+### Messages
+
+- `POST /chats/:chatId/messages` - Send message
+- `GET /chats/:chatId/messages` - Get chat messages
+- `POST /chats/:chatId/messages/read` - Mark messages as read
+
+### WebSocket Events
+
+- `message` - Send/receive messages
+- `typing` - Typing indicators
+- `connected` - Connection confirmation
+- `error` - Error handling
+
+## 🤖 AI Personas
+
+### 1. Therapist
+
+- Empathetic and supportive responses
+- Mental health guidance
+- Active listening approach
+- Anxiety and stress management
+
+### 2. Dietician
+
+- Nutrition and fitness advice
+- Meal planning suggestions
+- Health goal setting
+- Exercise recommendations
+
+### 3. Career Counselor
+
+- Professional development guidance
+- Resume and interview help
+- Career planning assistance
+- Skill development advice
+
+### 4. Priya (Companion AI)
+
+- Caring and loving personality
+- Emotional support
+- Conversational companion
+- Relationship-like interactions
 
 ## 🔧 Development
 
-### Code Quality
+### Project Structure
 
-```bash
-# Lint code
-npm run lint
-
-# Format code
-npm run format
-
-# Type checking
-npx tsc --noEmit
+```
+src/
+├── ai-personas/          # AI persona configurations
+├── auth/                 # Authentication module
+├── chat/                 # Chat and messaging system
+├── prisma/              # Database configuration
+├── user/                # User management
+└── main.ts              # Application entry point
 ```
 
-### Git Hooks
+### Key Components
 
-The project uses Husky for pre-commit hooks that automatically:
+- **ChatGateway**: WebSocket connection handling
+- **ChatService**: Business logic for messaging
+- **ChatController**: REST API endpoints
+- **AiPersonasService**: AI persona management
+- **WebSocketService**: Real-time communication
 
-- Format code with Prettier
-- Run linting checks
+### Scripts
 
-## 📚 Key Features
+```bash
+npm run start:dev    # Development server
+npm run build        # Production build
+npm run test         # Run tests
+npm run test:e2e     # End-to-end tests
+npx prisma studio    # Database browser
+```
 
-### AI Personas
+## 🌐 WebSocket Connection
 
-- **Priya**: Intelligent learning assistant with natural conversation abilities
-- Customizable personality traits and responses
-- Context-aware conversations with 50-message history
-- Training data optimization for natural interactions
+Connect to WebSocket server:
 
-### WhatsApp Integration
+```javascript
+import { io } from 'socket.io-client';
 
-- Seamless messaging through WhatsApp Business API
-- Message persistence and conversation tracking
-- Automated responses with AI personas
+const socket = io('http://localhost:3001/ws', {
+  query: { token: 'your_jwt_token' },
+  transports: ['websocket', 'polling'],
+});
 
-### Conversation Management
+socket.on('connected', (data) => {
+  console.log('Connected:', data);
+});
 
-- Smart summarization of long conversations
-- Context preservation across sessions
-- Enhanced response quality through RAG
+socket.emit('message', {
+  type: 'message',
+  data: {
+    chatId: 'chat_id',
+    content: 'Hello!',
+    agentId: 'therapist',
+    messageId: 'unique_id',
+  },
+});
+```
+
+## 🔒 Security Features
+
+- JWT token authentication
+- CORS protection
+- Rate limiting on WebSocket connections
+- Input validation and sanitization
+- Secure database connections
+- Google OAuth integration
+
+## 📊 Monitoring
+
+- Health check endpoint: `GET /chats/ws/health`
+- Connection statistics available
+- Comprehensive error logging
+- WebSocket connection tracking
+
+## 🚨 Error Handling
+
+The system includes comprehensive error handling:
+
+- Graceful WebSocket disconnections
+- AI service fallbacks
+- Database connection recovery
+- Detailed error logging
 
 ## 🤝 Contributing
 
-Please read our [Collaboration Guide](./COLLABORATION_GUIDE.md) for detailed information on:
-
-- Setting up the development environment
-- Code standards and conventions
-- Git workflow and branching strategy
-- Troubleshooting common issues
-
-### Quick Setup for Contributors
-
-```bash
-# Automated setup (recommended)
-curl -O https://raw.githubusercontent.com/gurukulai/gurukul-v1-backend/main/collaborator_setup.sh
-chmod +x collaborator_setup.sh
-./collaborator_setup.sh
-```
-
-## 📖 Documentation
-
-- [Improving Priya AI](./IMPROVING_PRIYA.md) - Recent AI improvements and optimizations
-- [Collaboration Guide](./COLLABORATION_GUIDE.md) - Development workflow and guidelines
-- [API Documentation](./docs/api.md) - API endpoints and usage (if available)
-
-## 🚀 Deployment
-
-### Vercel Deployment
-
-The project includes `vercel.json` configuration for easy deployment on Vercel:
-
-```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy
-vercel
-```
-
-### Other Platforms
-
-For other deployment options, check out the [NestJS deployment documentation](https://docs.nestjs.com/deployment).
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
 
 ## 📄 License
 
-This project is [MIT licensed](LICENSE).
+This project is licensed under the MIT License.
 
-## 🆘 Support
+## �� Support
 
-- 📖 [NestJS Documentation](https://docs.nestjs.com)
-- 💬 [Discord Community](https://discord.gg/G7Qnnhy)
-- 🐛 [GitHub Issues](https://github.com/gurukulai/gurukul-v1-backend/issues)
+For support and questions:
 
-## 🔗 Related Projects
-
-- [Gurukul Frontend](https://github.com/raghavg93/gurukul-v1-frontend) - React-based chat interface
+- Create an issue in the repository
+- Check the documentation
+- Review the API endpoints
 
 ---
 
-Built with ❤️ using [NestJS](https://nestjs.com/)
+**Built with ❤️ for intelligent conversations**

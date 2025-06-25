@@ -464,6 +464,9 @@ export class ChatService {
       const lastMessage = (messages[messages.length - 1] as { content: string })
         .content;
 
+      console.log('🚀 Calling Letta AI service...');
+      const startTime = Date.now();
+
       // First, try the external AI service
       const response = await fetch('http://localhost:1511/message', {
         method: 'POST',
@@ -473,7 +476,7 @@ export class ChatService {
         body: JSON.stringify({
           message: lastMessage,
         }),
-        signal: AbortSignal.timeout(5000), // 5 second timeout
+        signal: AbortSignal.timeout(15000), // 15 second timeout for Letta
       });
 
       if (!response.ok) {
@@ -484,6 +487,11 @@ export class ChatService {
         await response.json();
 
       if (data.success && data.response) {
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        console.log(
+          `✅ Letta responded in ${duration}ms with: ${data.response.substring(0, 100)}...`,
+        );
         return data.response;
       } else {
         throw new Error(data.error || 'No response from AI service');
