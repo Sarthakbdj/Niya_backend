@@ -556,29 +556,68 @@ export class ChatService {
       console.log(
         `🔗 Python service URL: ${process.env.PYTHON_SERVICE_URL || 'http://localhost:1511'}`,
       );
+
+      // Limit conversation context to last 6 messages to prevent overload
+      const maxContextMessages = 6;
+      const limitedMessages = messages.slice(-maxContextMessages);
       console.log(
-        `📝 Sending conversation context: ${messages.length} messages`,
+        `📝 Sending conversation context: ${limitedMessages.length} messages (limited from ${messages.length})`,
       );
       console.log(`📝 Current message: "${lastMessage.substring(0, 100)}..."`);
+
+      // Try with retry logic
+      let lastError: Error | null = null;
+      const maxRetries = 2;
+      const baseTimeout = 25000; // 25 second timeout
+      let response: Response | null = null;
       const startTime = Date.now();
 
-      // Send full conversation context to Letta (not just last message)
-      const response = await fetch(
-        process.env.PYTHON_SERVICE_URL + '/message' ||
-          'http://localhost:1511/message',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            message: lastMessage,
-            conversation_history: messages, // Send full conversation context
-            system_prompt: systemPrompt, // Send system prompt for context
-          }),
-          signal: AbortSignal.timeout(30000), // 30 second timeout for Letta
-        },
-      );
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          console.log(
+            `📡 Attempt ${attempt}/${maxRetries} - Timeout: ${baseTimeout}ms`,
+          );
+
+          response = await fetch(
+            process.env.PYTHON_SERVICE_URL + '/message' ||
+              'http://localhost:1511/message',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                message: lastMessage,
+                conversation_history: limitedMessages, // Send limited conversation context
+                system_prompt: systemPrompt, // Send system prompt for context
+              }),
+              signal: AbortSignal.timeout(baseTimeout), // 25 second timeout
+            },
+          );
+
+          // Success, break out of retry loop
+          break;
+        } catch (error) {
+          lastError = error as Error;
+          console.error(
+            `❌ Attempt ${attempt} failed:`,
+            error instanceof Error ? error.message : error,
+          );
+
+          if (attempt === maxRetries) {
+            // Final attempt failed, throw the error
+            throw lastError;
+          }
+
+          // Wait 2 seconds before retry
+          console.log(`⏳ Retrying in 2 seconds...`);
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+      }
+
+      if (!response) {
+        throw lastError || new Error('Failed to get response after retries');
+      }
 
       if (!response.ok) {
         console.error(
