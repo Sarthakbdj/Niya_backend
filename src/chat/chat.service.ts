@@ -556,6 +556,12 @@ export class ChatService {
       console.log(
         `🔗 Python service URL: ${process.env.PYTHON_SERVICE_URL || 'http://localhost:1511'}`,
       );
+      console.log(
+        `🔑 Letta API Key configured: ${process.env.LETTA_API_KEY ? '✅ Yes' : '❌ No'}`,
+      );
+      console.log(
+        `🌐 Letta Base URL: ${process.env.LETTA_BASE_URL || 'Not configured'}`,
+      );
 
       // Limit conversation context to last 6 messages to prevent overload
       const maxContextMessages = 6;
@@ -590,6 +596,8 @@ export class ChatService {
                 message: lastMessage,
                 conversation_history: limitedMessages, // Send limited conversation context
                 system_prompt: systemPrompt, // Send system prompt for context
+                letta_api_key: process.env.LETTA_API_KEY, // Pass Letta API key for authentication
+                letta_base_url: process.env.LETTA_BASE_URL, // Pass Letta base URL
               }),
               signal: AbortSignal.timeout(baseTimeout), // 25 second timeout
             },

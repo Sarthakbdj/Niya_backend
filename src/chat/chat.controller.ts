@@ -257,6 +257,8 @@ export class ChatController {
           body: JSON.stringify({
             message:
               body.message || 'Hello, test message for multi-message feature',
+            letta_api_key: process.env.LETTA_API_KEY, // Pass Letta API key for authentication
+            letta_base_url: process.env.LETTA_BASE_URL, // Pass Letta base URL
           }),
           signal: AbortSignal.timeout(15000),
         },
