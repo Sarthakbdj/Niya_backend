@@ -14,6 +14,7 @@ async function bootstrap() {
       'http://localhost:3002',
       'http://localhost:5173',
       'https://gurukul-v1-frontend.vercel.app',
+      'https://niya-frontend.onrender.com/',
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
