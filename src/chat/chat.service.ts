@@ -553,19 +553,26 @@ export class ChatService {
         .content;
 
       console.log('🚀 Calling Letta AI service...');
+      console.log(
+        `🔗 Python service URL: ${process.env.PYTHON_SERVICE_URL || 'http://localhost:1511'}`,
+      );
       const startTime = Date.now();
 
       // First, try the external AI service
-      const response = await fetch('http://localhost:1511/message', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        process.env.PYTHON_SERVICE_URL + '/message' ||
+          'http://localhost:1511/message',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: lastMessage,
+          }),
+          signal: AbortSignal.timeout(15000), // 15 second timeout for Letta
         },
-        body: JSON.stringify({
-          message: lastMessage,
-        }),
-        signal: AbortSignal.timeout(15000), // 15 second timeout for Letta
-      });
+      );
 
       if (!response.ok) {
         console.error(

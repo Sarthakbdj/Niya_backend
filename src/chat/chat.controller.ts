@@ -241,19 +241,26 @@ export class ChatController {
   async testBridge(@Body() body: { message: string }) {
     try {
       console.log('🧪 TESTING BRIDGE CONNECTION');
+      console.log(
+        `🔗 Python service URL: ${process.env.PYTHON_SERVICE_URL || 'http://localhost:1511'}`,
+      );
       console.log('Test message:', body.message);
 
-      const response = await fetch('http://localhost:1511/message', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        process.env.PYTHON_SERVICE_URL + '/message' ||
+          'http://localhost:1511/message',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message:
+              body.message || 'Hello, test message for multi-message feature',
+          }),
+          signal: AbortSignal.timeout(15000),
         },
-        body: JSON.stringify({
-          message:
-            body.message || 'Hello, test message for multi-message feature',
-        }),
-        signal: AbortSignal.timeout(15000),
-      });
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
